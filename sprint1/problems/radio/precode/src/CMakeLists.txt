@@ -21,5 +21,5 @@ if(WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
-add_executable(radio src/main.cpp src/audio.h)
+add_executable(radio main.cpp audio.h)
 target_link_libraries(radio PRIVATE Threads::Threads)
