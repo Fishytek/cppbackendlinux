@@ -42,7 +42,7 @@ StringResponse HandleRequest(StringRequest&& req) {
     };
 
     if(req.method() != http::verb::get && req.method() != http::verb::head){
-        return text_response(http::status::method_not_allowed, "Incorrect request");
+        return text_response(http::status::method_not_allowed, "Invalid method"); 
     }
     
     std::string target(req.target().data(), req.target().size());
