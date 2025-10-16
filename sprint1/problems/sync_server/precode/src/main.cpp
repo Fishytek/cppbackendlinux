@@ -49,7 +49,7 @@ StringResponse HandleRequest(StringRequest&& req) {
     if(!target.empty() &&  target[0] == '/'){
         target.erase(0, 1);
     }
-    std::string result = "Hello " + target;
+    std::string result = "Hello, " + target;
     return text_response(http::status::ok, result);
 } 
 
