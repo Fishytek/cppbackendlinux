@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "/home/fishytek/cppbackendlinux/sprint1/problems/sync_server/precode"
+    "cmake.sourceDirectory": "/home/fishytek/cppbackendlinux/sprint1/problems/sync_server/precode",
+    "files.associations": {
+        "string_view": "cpp"
+    }
 }
