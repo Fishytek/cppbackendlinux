@@ -5,10 +5,6 @@
 #include "clock.h"
 #include "gascooker.h"
 
-/*
-Класс "Сосиска".
-Позволяет себя обжаривать на газовой плите
-*/
 class Sausage : public std::enable_shared_from_this<Sausage> {
 public:
     using Handler = std::function<void()>;
@@ -21,29 +17,20 @@ public:
         return id_;
     }
 
-    // Асинхронно начинает приготовление. Вызывает handler, как только началось приготовление
     void StartFry(GasCooker& cooker, Handler handler) {
-        // Метод StartFry можно вызвать только один раз
         if (frying_start_time_) {
             throw std::logic_error("Frying already started");
         }
 
-        // Запрещаем повторный вызов StartFry
         frying_start_time_ = Clock::now();
-
-        // Готовимся занять газовую плиту
         gas_cooker_lock_ = GasCookerLock{cooker.shared_from_this()};
 
-        // Занимаем горелку для начала обжаривания.
-        // Чтобы продлить жизнь текущего объекта, захватываем shared_ptr в лямбде
         cooker.UseBurner([self = shared_from_this(), handler = std::move(handler)] {
-            // Запоминаем время фактического начала обжаривания
             self->frying_start_time_ = Clock::now();
             handler();
         });
     }
 
-    // Завершает приготовление и освобождает горелку
     void StopFry() {
         if (!frying_start_time_) {
             throw std::logic_error("Frying has not started");
@@ -52,7 +39,6 @@ public:
             throw std::logic_error("Frying has already stopped");
         }
         frying_end_time_ = Clock::now();
-        // Освобождаем горелку
         gas_cooker_lock_.Unlock();
     }
 
@@ -74,7 +60,6 @@ private:
     std::optional<Clock::time_point> frying_end_time_;
 };
 
-// Класс "Хлеб". Ведёт себя аналогично классу "Сосиска"
 class Bread : public std::enable_shared_from_this<Bread> {
 public:
     using Handler = std::function<void()>;
@@ -87,27 +72,19 @@ public:
         return id_;
     }
 
-    // Начинает приготовление хлеба на газовой плите. Как только горелка будет занята, вызовет
-    // handler
     void StartBake(GasCooker& cooker, Handler handler) {
         if (baking_start_time_) {
             throw std::logic_error("Baking already started");
         }
         baking_start_time_ = Clock::now();
-
-        // Готовимся занять газовую плиту
         gas_cooker_lock_ = GasCookerLock{cooker.shared_from_this()};
 
-        // Занимаем горелку для начала обжаривания.
-        // Чтобы продлить жизнь текущего объекта, захватываем shared_ptr в лямбде
         cooker.UseBurner([self = shared_from_this(), handler = std::move(handler)] {
-            // Запоминаем время фактического начала обжаривания
             self->baking_start_time_ = Clock::now();
             handler();
         });
     }
 
-    // Останавливает приготовление хлеба и освобождает горелку.
     void StopBaking() {
         if (!baking_start_time_) {
             throw std::logic_error("Baking has not started");
@@ -116,16 +93,13 @@ public:
             throw std::logic_error("Baking has already stopped");
         }
         baking_end_time_ = Clock::now();
-        // Освобождаем горелку
         gas_cooker_lock_.Unlock();
     }
 
-    // Информирует, испечён ли хлеб
     bool IsCooked() const noexcept {
         return baking_start_time_.has_value() && baking_end_time_.has_value();
     }
 
-    // Возвращает продолжительность выпекания хлеба. Бросает исключение, если хлеб не был испечён
     Clock::duration GetBakingDuration() const {
         if (!baking_start_time_ || !baking_end_time_) {
             throw std::logic_error("Bread has not been baked");
@@ -140,7 +114,6 @@ private:
     std::optional<Clock::time_point> baking_end_time_;
 };
 
-// Склад ингредиентов (возвращает ингредиенты с уникальным id)
 class Store {
 public:
     std::shared_ptr<Bread> GetBread() {

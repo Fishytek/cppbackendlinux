@@ -7,6 +7,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 #include <memory>
+#include <atomic>
 
 #include "hotdog.h"
 #include "result.h"
@@ -41,11 +42,10 @@ public:
         state->sausage = std::move(sausage);
         state->handler = std::move(handler);
         
-        auto check_complete = [state] {
+        auto check_complete = [state, this] {
             if (state->bread_done && state->sausage_done) {
                 try {
-                    static int next_hotdog_id = 0;
-                    HotDog hot_dog(++next_hotdog_id, state->sausage, state->bread);
+                    HotDog hot_dog(++next_hotdog_id_, state->sausage, state->bread);
                     state->handler(Result<HotDog>{std::move(hot_dog)});
                 } catch (const std::exception& e) {
                     state->handler(Result<HotDog>{std::make_exception_ptr(e)});
@@ -82,4 +82,8 @@ private:
     net::io_context& io_;
     Store store_;
     std::shared_ptr<GasCooker> gas_cooker_ = std::make_shared<GasCooker>(io_);
+    static std::atomic<int> next_hotdog_id_;
 };
+
+// Инициализация статической переменной
+std::atomic<int> Cafeteria::next_hotdog_id_{0};
