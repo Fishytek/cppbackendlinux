@@ -96,5 +96,3 @@ private:
     static std::atomic<int> next_hotdog_id_;
 };
 
-// Инициализация статической переменной
-std::atomic<int> Cafeteria::next_hotdog_id_{0};
