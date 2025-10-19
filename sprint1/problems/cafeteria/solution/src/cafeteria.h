@@ -30,59 +30,48 @@ public:
         struct OrderState {
             std::shared_ptr<Bread> bread;
             std::shared_ptr<Sausage> sausage;
-            std::atomic<bool> bread_done{false};
-            std::atomic<bool> sausage_done{false};
+            bool bread_done = false;
+            bool sausage_done = false;
             HotDogHandler handler;
             std::shared_ptr<net::steady_timer> bread_timer;
             std::shared_ptr<net::steady_timer> sausage_timer;
-            net::strand<net::io_context::executor_type> strand;
-            
-            OrderState(net::io_context& io) 
-                : strand(net::make_strand(io)) {
-            }
         };
         
-        auto state = std::make_shared<OrderState>(io_);
+        auto state = std::make_shared<OrderState>();
         state->bread = std::move(bread);
         state->sausage = std::move(sausage);
         state->handler = std::move(handler);
         
         auto check_complete = [state, this] {
-            // Проверяем завершение внутри strand для атомарности
-            net::dispatch(state->strand, [state, this] {
-                if (state->bread_done.load() && state->sausage_done.load()) {
-                    try {
-                        int hotdog_id = ++next_hotdog_id_;
-                        HotDog hot_dog(hotdog_id, state->sausage, state->bread);
-                        state->handler(Result<HotDog>{std::move(hot_dog)});
-                    } catch (const std::exception& e) {
-                        state->handler(Result<HotDog>{std::make_exception_ptr(e)});
-                    }
+            if (state->bread_done && state->sausage_done) {
+                try {
+                    HotDog hot_dog(++next_hotdog_id_, state->sausage, state->bread);
+                    state->handler(Result<HotDog>{std::move(hot_dog)});
+                } catch (const std::exception& e) {
+                    state->handler(Result<HotDog>{std::make_exception_ptr(e)});
                 }
-            });
+            }
         };
         
-        // Запускаем приготовление хлеба
         state->bread->StartBake(*gas_cooker_, [state, check_complete, this] {
             state->bread_timer = std::make_shared<net::steady_timer>(io_);
             state->bread_timer->expires_after(std::chrono::milliseconds(1000));
             state->bread_timer->async_wait([state, check_complete](const boost::system::error_code& ec) {
                 if (!ec) {
                     state->bread->StopBaking();
-                    state->bread_done.store(true);
+                    state->bread_done = true;
                     check_complete();
                 }
             });
         });
         
-        // Запускаем жарку сосиски
         state->sausage->StartFry(*gas_cooker_, [state, check_complete, this] {
             state->sausage_timer = std::make_shared<net::steady_timer>(io_);
             state->sausage_timer->expires_after(std::chrono::milliseconds(1500));
             state->sausage_timer->async_wait([state, check_complete](const boost::system::error_code& ec) {
                 if (!ec) {
                     state->sausage->StopFry();
-                    state->sausage_done.store(true);
+                    state->sausage_done = true;
                     check_complete();
                 }
             });
