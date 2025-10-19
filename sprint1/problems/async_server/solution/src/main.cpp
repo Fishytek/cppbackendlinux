@@ -44,7 +44,7 @@ StringResponse HandleRequest(StringRequest&& req) {
 
     if (req.method() != http::verb::get && req.method() != http::verb::head) {
         StringResponse response = text_response(http::status::method_not_allowed, "Invalid method");
-        response.set(http::field::allow, "GET, HEAD");
+        response.set(http::field::allow, "GET, HEAD");  // ← ДОБАВИТЬ ЭТУ СТРОКУ
         return response;
     }
     
@@ -56,7 +56,6 @@ StringResponse HandleRequest(StringRequest&& req) {
     std::string result = "Hello, " + target;
     
     if (req.method() == http::verb::head) {
-        // Для HEAD запроса возвращаем тот же ответ, но с пустым телом
         return MakeStringResponse(http::status::ok, ""sv, req.version(), req.keep_alive());
     }
     
@@ -94,8 +93,10 @@ int main() {
     const auto address = net::ip::make_address("0.0.0.0");
     constexpr net::ip::port_type port = 8080;
     http_server::ServeHttp(ioc, {address, port}, [](auto&& req, auto&& sender) {
-        // sender(HandleRequest(std::forward<decltype(req)>(req)));
+        sender(HandleRequest(std::forward<decltype(req)>(req)));
     });
+
+    
 
     // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
     std::cout << "Server has started..."sv << std::endl;
