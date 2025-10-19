@@ -22,8 +22,8 @@ using StringResponse = http::response<http::string_body>;
 struct ContentType {
     ContentType() = delete;
     constexpr static std::string_view TEXT_HTML = "text/html"sv;
-    // При необходимости внутрь ContentType можно добавить и другие типы контента
 };
+
 
 // Создаёт StringResponse с заданными параметрами
 StringResponse MakeStringResponse(http::status status, std::string_view body, unsigned http_version,
@@ -38,8 +38,29 @@ StringResponse MakeStringResponse(http::status status, std::string_view body, un
 }
 
 StringResponse HandleRequest(StringRequest&& req) {
-    // Подставьте сюда код из синхронной версии HTTP-сервера
-    return MakeStringResponse(http::status::ok, "OK"sv, req.version(), req.keep_alive());
+    const auto text_response = [&req](http::status status, std::string_view text) {
+        return MakeStringResponse(status, text, req.version(), req.keep_alive());
+    };
+
+    if (req.method() != http::verb::get && req.method() != http::verb::head) {
+        StringResponse response = text_response(http::status::method_not_allowed, "Invalid method");
+        response.set(http::field::allow, "GET, HEAD");
+        return response;
+    }
+    
+    std::string target(req.target().data(), req.target().size());
+    if (!target.empty() && target[0] == '/') {
+        target.erase(0, 1);
+    }
+    
+    std::string result = "Hello, " + target;
+    
+    if (req.method() == http::verb::head) {
+        // Для HEAD запроса возвращаем тот же ответ, но с пустым телом
+        return MakeStringResponse(http::status::ok, ""sv, req.version(), req.keep_alive());
+    }
+    
+    return text_response(http::status::ok, result);
 }
 
 // Запускает функцию fn на n потоках, включая текущий
