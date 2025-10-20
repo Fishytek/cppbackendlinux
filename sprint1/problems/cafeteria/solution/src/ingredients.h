@@ -5,7 +5,7 @@
 #include "clock.h"
 #include "gascooker.h"
 
-class Sausage : public std::enable_shared_from_this<Sausage> {
+class Sausage : public std::enable_shared_from_this<Sausage> { //сосики
 public:
     using Handler = std::function<void()>;
 
