@@ -13,7 +13,7 @@ COPY conanfile.txt /app/
 RUN mkdir /app/build && cd /app/build && \
     conan install .. --build=missing
 
-# Папка data больше не нужна
+# Копируем исходники
 COPY ./src /app/src
 COPY CMakeLists.txt /app/
 
@@ -28,10 +28,11 @@ FROM ubuntu:22.04 as run
 RUN groupadd -r www && useradd -r -g www www
 USER www
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
+# Скопируем приложение со сборочного контейнера
 COPY --from=build /app/build/bin/game_server /app/
-COPY ./data /app/data
+
+# Копируем данные из правильной папки
+COPY data /app/data
 
 # Запускаем игровой сервер
 ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
