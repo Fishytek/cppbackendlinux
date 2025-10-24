@@ -14,7 +14,7 @@
 #include "ingredients.h"
 
 namespace net = boost::asio;
-
+// хотдог 
 using HotDogHandler = std::function<void(Result<HotDog> hot_dog)>;
 
 class Cafeteria {
