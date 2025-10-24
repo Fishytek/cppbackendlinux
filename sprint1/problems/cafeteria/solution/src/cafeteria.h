@@ -17,7 +17,7 @@ namespace net = boost::asio;
 // хотдог 
 using HotDogHandler = std::function<void(Result<HotDog> hot_dog)>;
 
-class Cafeteria { // кафетерия
+class Cafeteria { 
 public:
     explicit Cafeteria(net::io_context& io)
         : io_{io} {
