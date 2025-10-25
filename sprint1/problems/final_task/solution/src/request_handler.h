@@ -8,36 +8,33 @@ namespace http_handler {
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-class RequestHandler {
+class RequestHandler : public HttpHandler {
 public:
-    explicit RequestHandler(model::Game& game)
-        : game_{game} {
+    // Константы для эндпоинтов
+    static constexpr std::string_view MAPS_LIST_ENDPOINT = "/api/v1/maps";
+    static constexpr std::string_view MAP_BY_ID_ENDPOINT_PREFIX = "/api/v1/maps/";
+    static constexpr std::string_view JOIN_GAME_ENDPOINT = "/api/v1/game/join";
+    static constexpr std::string_view PLAYERS_LIST_ENDPOINT = "/api/v1/game/players";
+    static constexpr std::string_view GAME_STATE_ENDPOINT = "/api/v1/game/state";
+
+    explicit RequestHandler(model::Game& game) : game_(game) {
     }
 
-    RequestHandler(const RequestHandler&) = delete;
-    RequestHandler& operator=(const RequestHandler&) = delete;
-
-    template <typename Body, typename Allocator, typename Send>
-    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        // Используем beast::string_view вместо std::string_view
+    template <typename Request, typename Send>
+    void operator()(Request&& req, Send&& send) {
         auto target = req.target();
         
-        if (req.method() == http::verb::get) {
-            if (target == "/api/v1/maps") {
-                HandleGetMapsList(std::move(req), std::forward<Send>(send));
-                return;
-            } else if (target.starts_with("/api/v1/maps/")) {
-                HandleGetMap(std::move(req), std::forward<Send>(send));
-                return;
-            }
-        }
-        
-        if (target.starts_with("/api/")) {
-            HandleBadRequest(std::move(req), std::forward<Send>(send));
+        if (target == MAPS_LIST_ENDPOINT) {
+            HandleGetMapsList(std::move(req), std::forward<Send>(send));
+            return;
+        } else if (target.starts_with(MAP_BY_ID_ENDPOINT_PREFIX)) {
+            HandleGetMapById(std::move(req), std::forward<Send>(send));
+            return;
+        } else if (target == JOIN_GAME_ENDPOINT) {
+            HandleJoinGame(std::move(req), std::forward<Send>(send));
             return;
         }
         
-        HandleNotFound(std::move(req), std::forward<Send>(send));
     }
 
 private:

@@ -74,8 +74,7 @@ private:
     }
 
     void Close() {
-        beast::error_code ec;
-        stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+        stream_.socket().shutdown(tcp::socket::shutdown_send, "Closed");
     }
 
     // Обработку запроса делегируем подклассу
