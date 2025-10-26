@@ -42,19 +42,21 @@ private:
 
     template <typename Body, typename Allocator, typename Send>
     void HandleGetMapsList(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        std::string json = "[";
+    boost::json::array maps_array;
+    
+    const auto& maps = game_.GetMaps();
+    for (const auto& map : maps) {
+        boost::json::object map_obj;
+        map_obj["id"] = *map.GetId();
+        map_obj["name"] = map.GetName();
         
-        const auto& maps = game_.GetMaps();
-        for (size_t i = 0; i < maps.size(); ++i) {
-            json += "{\"id\":\"" + std::string(*maps[i].GetId()) + "\",\"name\":\"" + maps[i].GetName() + "\"}";
-            if (i != maps.size() - 1) {
-                json += ",";
-            }
-        }
-        json += "]";
-        
-        auto response = MakeResponse(std::move(req), json, http::status::ok);
-        send(std::move(response));
+        maps_array.push_back(std::move(map_obj));
+    }
+    
+    std::string json = boost::json::serialize(maps_array);
+    
+    auto response = MakeResponse(std::move(req), json, http::status::ok);
+    send(std::move(response));
     }
 
     template <typename Body, typename Allocator, typename Send>
