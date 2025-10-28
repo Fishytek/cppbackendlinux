@@ -30,8 +30,9 @@ void RunWorkers(unsigned n, const Fn& fn) {
 }  // namespace
 
 int main(int argc, const char* argv[]) {
+    // Исправьте проверку на 3 аргумента и сообщение об использовании
     if (argc != 3) {
-        std::cerr << "Usage: game_server <game-config-json>"sv << std::endl;
+        std::cerr << "Usage: game_server <game-config-json> <static-files-path>"sv << std::endl;
         return EXIT_FAILURE;
     }
     try {

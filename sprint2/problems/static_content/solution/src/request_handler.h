@@ -17,13 +17,14 @@ public:
     static constexpr std::string_view PLAYERS_LIST_ENDPOINT = "/api/v1/game/players";
     static constexpr std::string_view GAME_STATE_ENDPOINT = "/api/v1/game/state";
 
-    explicit RequestHandler(model::Game& game) : game_(game) {
+    explicit RequestHandler(model::Game& game, const std::string& static_files_path = "") 
+        : game_(game), static_files_path_(static_files_path) {
     }
 
     template <typename Request, typename Send>
     void operator()(Request&& req, Send&& send) {
         auto target = req.target();
-        if(target.starts("/api/")){
+        if(target.starts_with("/api/")){
             HandleApiReq(std::move(req), std::forward<Send>(send));
         } else {
             HandleStaticFile(std::move(req), std::forward<Send>(send));
