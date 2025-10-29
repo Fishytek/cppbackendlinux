@@ -202,27 +202,36 @@ void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req
 
 bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
     try {
-        // Простая проверка: путь не должен содержать ".."
+        // Простая проверка: если путь содержит "..", считаем небезопасным
         std::string path_str = path.string();
         if (path_str.find("..") != std::string::npos) {
             return false;
         }
         
-        // Дополнительная проверка через canonical paths
-        fs::path abs_path = fs::absolute(path);
+        // Более надежная проверка через canonical paths
         fs::path abs_root = fs::absolute(root);
+        fs::path abs_path = fs::absolute(path);
         
-        // Преобразуем в canonical пути (это уберет все ".." и сделает пути абсолютными)
-        fs::path canonical_path = fs::weakly_canonical(abs_path);
-        fs::path canonical_root = fs::weakly_canonical(abs_root);
+        // Нормализуем пути
+        fs::path norm_root = abs_root.lexically_normal();
+        fs::path norm_path = abs_path.lexically_normal();
         
-        // Проверяем, что canonical_path начинается с canonical_root
-        std::string canonical_path_str = canonical_path.string();
-        std::string canonical_root_str = canonical_root.string();
+        // Преобразуем в строки для сравнения
+        std::string root_str = norm_root.string();
+        std::string path_str_final = norm_path.string();
         
-        return canonical_path_str.find(canonical_root_str) == 0;
+        // Путь должен начинаться с корневой директории
+        bool result = (path_str_final.find(root_str) == 0);
         
-    } catch (const fs::filesystem_error&) {
+        // Отладочный вывод (можно убрать после отладки)
+        // std::cout << "Root: " << root_str << std::endl;
+        // std::cout << "Path: " << path_str_final << std::endl;
+        // std::cout << "Result: " << result << std::endl;
+        
+        return result;
+        
+    } catch (const fs::filesystem_error& e) {
+        // В случае ошибки файловой системы считаем путь небезопасным
         return false;
     }
 }
