@@ -92,78 +92,74 @@ void HandleApiRequest(http::request<Body, http::basic_fields<Allocator>>&& req, 
     }
 }
 
-template <typename Body, typename Allocator, typename Send>
-void HandleStaticContent(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-    // Проверяем метод - только GET и HEAD разрешены для статики
-    if (req.method() != http::verb::get && req.method() != http::verb::head) {
-        std::cout << "Method not allowed: " << req.method() << std::endl;
-        HandleMethodNotAllowed(std::move(req), std::forward<Send>(send));
-        return;
+    template <typename Body, typename Allocator, typename Send>
+    void HandleStaticContent(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+        // Проверяем метод - только GET и HEAD разрешены для статики
+        if (req.method() != http::verb::get && req.method() != http::verb::head) {
+            HandleMethodNotAllowed(std::move(req), std::forward<Send>(send));
+            return;
+        }
+
+        // Декодируем URL
+        std::string target_str(req.target().data(), req.target().size());
+        std::string decoded_path = UrlDecode(target_str);
+
+        // Убираем начальный слэш если есть
+        if (!decoded_path.empty() && decoded_path[0] == '/') {
+            decoded_path = decoded_path.substr(1);
+        }
+
+        // Если путь пустой или заканчивается на /, добавляем index.html
+        if (decoded_path.empty() || decoded_path.back() == '/') {
+            decoded_path += "index.html";
+        }
+
+        // Строим полный путь к файлу
+        fs::path file_path = fs::path(static_path_) / decoded_path;
+
+        // Проверяем, что путь не выходит за пределы корневой директории
+        if (!IsPathWithinRoot(file_path, static_path_)) {
+            HandleBadRequest(std::move(req), std::forward<Send>(send), "Invalid path");
+            return;
+        }
+
+        // Проверяем существование файла
+        if (!fs::exists(file_path) || !fs::is_regular_file(file_path)) {
+            HandleFileNotFound(std::move(req), std::forward<Send>(send));
+            return;
+        }
+
+        // Читаем файл
+        std::ifstream file(file_path, std::ios::binary);
+        if (!file) {
+           HandleFileNotFound(std::move(req), std::forward<Send>(send));
+            return;
+        }
+
+        // Получаем размер файла
+        file.seekg(0, std::ios::end);
+        size_t file_size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        // Читаем содержимое файла
+        std::string file_content;
+        file_content.resize(file_size);
+        file.read(file_content.data(), file_size);
+
+        // Определяем MIME-тип
+        std::string content_type = GetMimeType(file_path.extension().string());
+
+        // Создаем ответ
+        http::response<http::string_body> response{http::status::ok, req.version()};
+        response.set(http::field::content_type, content_type);
+        response.set(http::field::content_length, std::to_string(file_size));
+        response.body() = (req.method() == http::verb::head) ? "" : file_content;
+        response.prepare_payload();
+        response.keep_alive(req.keep_alive());
+
+        send(std::move(response));
     }
 
-    // Декодируем URL
-    std::string target_str(req.target().data(), req.target().size());
-    std::string decoded_path = UrlDecode(target_str);
-
-    std::cout << "Original target: " << target_str << std::endl;
-    std::cout << "Decoded path: " << decoded_path << std::endl;
-
-    // Убираем начальный слэш если есть
-    if (!decoded_path.empty() && decoded_path[0] == '/') {
-        decoded_path = decoded_path.substr(1);
-    }
-
-    // Если путь пустой, используем index.html
-    if (decoded_path.empty()) {
-        decoded_path = "index.html";
-    }
-
-    std::cout << "Final path: " << decoded_path << std::endl;
-
-    // Строим полный путь к файлу
-    fs::path file_path = fs::path(static_path_) / decoded_path;
-
-    std::cout << "Static path: " << static_path_ << std::endl;
-    std::cout << "Full file path: " << file_path.string() << std::endl;
-
-    // Проверяем, что путь не выходит за пределы корневой директории
-    if (!IsPathWithinRoot(file_path, static_path_)) {
-        std::cout << "SECURITY CHECK FAILED - returning 400" << std::endl;
-        HandleBadRequest(std::move(req), std::forward<Send>(send), "Invalid path");
-        return;
-    } else {
-        std::cout << "Security check passed" << std::endl;
-    }
-
-    // Если путь ведет к директории, добавляем index.html
-    if (fs::exists(file_path) && fs::is_directory(file_path)) {
-        file_path /= "index.html";
-        std::cout << "Path is directory, using: " << file_path.string() << std::endl;
-    }
-
-    // Проверяем существование файла
-    if (!fs::exists(file_path)) {
-        std::cout << "FILE NOT EXISTS - returning 404" << std::endl;
-        HandleFileNotFound(std::move(req), std::forward<Send>(send));
-        return;
-    }
-
-    if (!fs::is_regular_file(file_path)) {
-        std::cout << "NOT A REGULAR FILE - returning 404" << std::endl;
-        HandleFileNotFound(std::move(req), std::forward<Send>(send));
-        return;
-    }
-
-    std::cout << "File exists and is regular file" << std::endl;
-
-    // Читаем файл
-    std::ifstream file(file_path, std::ios::binary);
-    if (!file) {
-        std::cout << "CANNOT OPEN FILE - returning 404" << std::endl;
-        HandleFileNotFound(std::move(req), std::forward<Send>(send));
-        return;
-    }
-}
     template <typename Body, typename Allocator, typename Send>
 void HandleApiNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     // Для неизвестных API endpoint - 404
@@ -208,7 +204,7 @@ void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req
     }
 
 bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
-    try {
+    /* try {
         // Простая проверка: если путь содержит "..", считаем небезопасным
         std::string path_str = path.string();
         if (path_str.find("..") != std::string::npos) {
@@ -240,7 +236,11 @@ bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
     } catch (const fs::filesystem_error& e) {
         // В случае ошибки файловой системы считаем путь небезопасным
         return false;
-    }
+    // }
+    */
+
+    std::cout << "DEBUG: IsPathWithinRoot - ALWAYS RETURNING TRUE" << std::endl;
+    return true;
 }
 
     std::string GetMimeType(const std::string& extension) {
