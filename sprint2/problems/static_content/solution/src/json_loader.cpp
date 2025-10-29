@@ -1,8 +1,6 @@
 #include "json_loader.h"
 #include <fstream>
 #include <boost/json.hpp>
-#include <iostream>
-#include <optional> 
 
 namespace json_loader {
 
@@ -14,7 +12,7 @@ namespace {
 model::Road LoadRoad(const json::object& road_obj) {
     int x0 = road_obj.at("x0").as_int64();
     int y0 = road_obj.at("y0").as_int64();
-    
+
     if (road_obj.contains("x1")) {
         int x1 = road_obj.at("x1").as_int64();
         return model::Road(model::Road::HORIZONTAL, {x0, y0}, x1);
@@ -29,7 +27,7 @@ model::Building LoadBuilding(const json::object& building_obj) {
     int y = building_obj.at("y").as_int64();
     int w = building_obj.at("w").as_int64();
     int h = building_obj.at("h").as_int64();
-    
+
     return model::Building({{x, y}, {w, h}});
 }
 
@@ -39,7 +37,7 @@ model::Office LoadOffice(const json::object& office_obj) {
     int y = office_obj.at("y").as_int64();
     int offsetX = office_obj.at("offsetX").as_int64();
     int offsetY = office_obj.at("offsetY").as_int64();
-    
+
     return model::Office(std::move(id), {x, y}, {offsetX, offsetY});
 }
 
@@ -70,12 +68,12 @@ model::Map LoadMap(const json::object& map_obj) {
 
     // Загружаем дороги (обязательные)
     LoadRoads(map, map_obj.at("roads").as_array());
-    
+
     // Загружаем опциональные объекты
     if (map_obj.contains("buildings")) {
         LoadBuildings(map, map_obj.at("buildings").as_array());
     }
-    
+
     if (map_obj.contains("offices")) {
         LoadOffices(map, map_obj.at("offices").as_array());
     }
@@ -93,7 +91,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
             std::cerr << "Failed to open json file: " << json_path << std::endl;
             return std::nullopt;
         }
-        
+
         // 2. Читаем содержимое файла
         std::string content((std::istreambuf_iterator<char>(file)), 
                            std::istreambuf_iterator<char>());
@@ -103,7 +101,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         auto value = json::parse(content);
         auto& root = value.as_object();
         auto& maps_array = root.at("maps").as_array();
-        
+
         model::Game game;
 
         // 4. Обрабатываем каждую карту
@@ -112,11 +110,10 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         }
 
         return game;
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Error loading game from " << json_path << ": " << e.what() << std::endl;
-        re
+        return std::nullopt;
     }
 }
-
-}  // namespace json_loader
+}
