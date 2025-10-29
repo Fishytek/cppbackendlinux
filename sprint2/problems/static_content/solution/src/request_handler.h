@@ -89,7 +89,7 @@ void HandleApiRequest(http::request<Body, http::basic_fields<Allocator>>&& req, 
     }
 }
 
- template <typename Body, typename Allocator, typename Send>
+template <typename Body, typename Allocator, typename Send>
 void HandleStaticContent(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     // Проверяем метод - только GET и HEAD разрешены для статики
     if (req.method() != http::verb::get && req.method() != http::verb::head) {
@@ -160,8 +160,7 @@ void HandleStaticContent(http::request<Body, http::basic_fields<Allocator>>&& re
         HandleFileNotFound(std::move(req), std::forward<Send>(send));
         return;
     }
-
-    
+}
     template <typename Body, typename Allocator, typename Send>
 void HandleApiNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     // Для неизвестных API endpoint - 404
