@@ -84,7 +84,7 @@ private:
         } else if (target == JOIN_GAME_ENDPOINT) {
             HandleJoinGame(std::move(req), std::forward<Send>(send));
         } else {
-            HandleNotFound(std::move(req), std::forward<Send>(send));
+            HandleApiNotFound(std::move(req), std::forward<Send>(send));
         }
     }
 
@@ -121,14 +121,14 @@ private:
 
         // Проверяем существование файла
         if (!fs::exists(file_path) || !fs::is_regular_file(file_path)) {
-            HandleNotFound(std::move(req), std::forward<Send>(send));
+            HandleFileNotFound(std::move(req), std::forward<Send>(send));
             return;
         }
 
         // Читаем файл
         std::ifstream file(file_path, std::ios::binary);
         if (!file) {
-            HandleNotFound(std::move(req), std::forward<Send>(send));
+            HandleFileNotFound(std::move(req), std::forward<Send>(send));
             return;
         }
 
@@ -155,6 +155,25 @@ private:
 
         send(std::move(response));
     }
+
+    template <typename Body, typename Allocator, typename Send>
+void HandleApiNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+    // Для неизвестных API endpoint - 404
+    std::string error_json = R"({"code":"badRequest","message":"Bad request"})";
+    auto response = MakeJsonResponse(std::move(req), error_json, http::status::not_found);
+    send(std::move(response));
+}
+
+template <typename Body, typename Allocator, typename Send>
+void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+    // Для несуществующих файлов - 404
+    http::response<http::string_body> response{http::status::not_found, req.version()};
+    response.set(http::field::content_type, "text/plain");
+    response.body() = "File Not Found";
+    response.prepare_payload();
+    response.keep_alive(req.keep_alive());
+    send(std::move(response));
+}
 
     std::string UrlDecode(const std::string& encoded) {
         std::string decoded;
