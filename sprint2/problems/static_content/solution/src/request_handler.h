@@ -128,7 +128,7 @@ private:
         // Читаем файл
         std::ifstream file(file_path, std::ios::binary);
         if (!file) {
-            HandleFileNotFound(std::move(req), std::forward<Send>(send));
+           HandleFileNotFound(std::move(req), std::forward<Send>(send));
             return;
         }
 
@@ -160,7 +160,7 @@ private:
 void HandleApiNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     // Для неизвестных API endpoint - 404
     std::string error_json = R"({"code":"badRequest","message":"Bad request"})";
-    auto response = MakeJsonResponse(std::move(req), error_json, http::status::not_found);
+    auto response = MakeResponse(std::move(req), error_json, http::status::not_found);
     send(std::move(response));
 }
 
