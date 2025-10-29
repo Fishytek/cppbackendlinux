@@ -202,28 +202,26 @@ void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req
 
 bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
     try {
-        // Получаем абсолютные пути
+        // Простая проверка: путь не должен содержать ".."
+        std::string path_str = path.string();
+        if (path_str.find("..") != std::string::npos) {
+            return false;
+        }
+        
+        // Дополнительная проверка через canonical paths
         fs::path abs_path = fs::absolute(path);
         fs::path abs_root = fs::absolute(root);
         
-        // Нормализуем пути (убираем .. и .)
-        fs::path normalized_path = abs_path.lexically_normal();
-        fs::path normalized_root = abs_root.lexically_normal();
+        // Преобразуем в canonical пути (это уберет все ".." и сделает пути абсолютными)
+        fs::path canonical_path = fs::weakly_canonical(abs_path);
+        fs::path canonical_root = fs::weakly_canonical(abs_root);
         
-        // Проверяем, что normalized_path начинается с normalized_root
-        auto path_it = normalized_path.begin();
-        auto root_it = normalized_root.begin();
+        // Проверяем, что canonical_path начинается с canonical_root
+        std::string canonical_path_str = canonical_path.string();
+        std::string canonical_root_str = canonical_root.string();
         
-        // Сравниваем каждый компонент пути
-        while (root_it != normalized_root.end()) {
-            if (path_it == normalized_path.end() || *path_it != *root_it) {
-                return false;
-            }
-            ++path_it;
-            ++root_it;
-        }
+        return canonical_path_str.find(canonical_root_str) == 0;
         
-        return true;
     } catch (const fs::filesystem_error&) {
         return false;
     }
@@ -356,8 +354,19 @@ bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
     }
 
     template <typename Body, typename Allocator, typename Send>
-    void HandleBadRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, 
-                         const std::string& message = "Bad request") {
+void HandleBadRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send, 
+                     const std::string& message = "Bad request") {
+    // Для API bad request возвращаем JSON
+    std::string target_str(req.target().data(), req.target().size());
+    string_view target = target_str;
+    
+    if (target.find(API_PREFIX) == 0) {
+        // API запросы - возвращаем JSON
+        std::string error_json = R"({"code":"badRequest","message":")" + message + "\"}";
+        auto response = MakeResponse(std::move(req), error_json, http::status::bad_request);
+        send(std::move(response));
+    } else {
+        // Статические запросы - возвращаем plain text
         http::response<http::string_body> response{http::status::bad_request, req.version()};
         response.set(http::field::content_type, "text/plain");
         response.body() = message;
@@ -365,6 +374,7 @@ bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
         response.keep_alive(req.keep_alive());
         send(std::move(response));
     }
+}
 
     template <typename Body, typename Allocator, typename Send>
     void HandleNotFound(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
