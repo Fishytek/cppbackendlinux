@@ -1,6 +1,8 @@
 #include "json_loader.h"
 #include <fstream>
 #include <boost/json.hpp>
+#include <iostream>
+#include <optional>
 
 namespace json_loader {
 
