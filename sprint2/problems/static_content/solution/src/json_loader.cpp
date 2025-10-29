@@ -115,7 +115,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         
     } catch (const std::exception& e) {
         std::cerr << "Error loading game from " << json_path << ": " << e.what() << std::endl;
-        return std::nullopt;
+        re
     }
 }
 
