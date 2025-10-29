@@ -72,21 +72,22 @@ private:
         mime_types_[".mp3"] = "audio/mpeg";
     }
 
-    template <typename Body, typename Allocator, typename Send>
-    void HandleApiRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        std::string target_str(req.target().data(), req.target().size());
-        string_view target = target_str;
+template <typename Body, typename Allocator, typename Send>
+void HandleApiRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+    std::string target_str(req.target().data(), req.target().size());
+    string_view target = target_str;
 
-        if (target == MAPS_LIST_ENDPOINT) {
-            HandleGetMapsList(std::move(req), std::forward<Send>(send));
-        } else if (target.find(MAP_BY_ID_ENDPOINT_PREFIX) == 0) {
-            HandleGetMap(std::move(req), std::forward<Send>(send));
-        } else if (target == JOIN_GAME_ENDPOINT) {
-            HandleJoinGame(std::move(req), std::forward<Send>(send));
-        } else {
-            HandleApiNotFound(std::move(req), std::forward<Send>(send));
-        }
+    if (target == MAPS_LIST_ENDPOINT && req.method() == http::verb::get) {
+        HandleGetMapsList(std::move(req), std::forward<Send>(send));
+    } else if (target.find(MAP_BY_ID_ENDPOINT_PREFIX) == 0 && req.method() == http::verb::get) {
+        HandleGetMap(std::move(req), std::forward<Send>(send));
+    } else if (target == JOIN_GAME_ENDPOINT && req.method() == http::verb::post) {
+        HandleJoinGame(std::move(req), std::forward<Send>(send));
+    } else {
+        // Для неизвестных API endpoint возвращаем 400 (а не 404)
+        HandleBadRequest(std::move(req), std::forward<Send>(send), "Bad API request");
     }
+}
 
     template <typename Body, typename Allocator, typename Send>
     void HandleStaticContent(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
@@ -199,23 +200,23 @@ void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req
         return decoded;
     }
 
-    bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
-        fs::path canonical_path;
-        fs::path canonical_root;
+bool IsPathWithinRoot(const fs::path& path, const std::string& root) {
+    try {
+        // Получаем абсолютные пути
+        fs::path abs_path = fs::absolute(path);
+        fs::path abs_root = fs::absolute(root);
         
-        try {
-            canonical_path = fs::canonical(path);
-            canonical_root = fs::canonical(root);
-        } catch (const fs::filesystem_error&) {
-            return false;
-        }
+        // Нормализуем пути (убираем .. и .)
+        fs::path normalized_path = abs_path.lexically_normal();
+        fs::path normalized_root = abs_root.lexically_normal();
         
-        // Проверяем, что canonical_path начинается с canonical_root
-        auto path_it = canonical_path.begin();
-        auto root_it = canonical_root.begin();
+        // Проверяем, что normalized_path начинается с normalized_root
+        auto path_it = normalized_path.begin();
+        auto root_it = normalized_root.begin();
         
-        while (root_it != canonical_root.end()) {
-            if (path_it == canonical_path.end() || *path_it != *root_it) {
+        // Сравниваем каждый компонент пути
+        while (root_it != normalized_root.end()) {
+            if (path_it == normalized_path.end() || *path_it != *root_it) {
                 return false;
             }
             ++path_it;
@@ -223,7 +224,10 @@ void HandleFileNotFound(http::request<Body, http::basic_fields<Allocator>>&& req
         }
         
         return true;
+    } catch (const fs::filesystem_error&) {
+        return false;
     }
+}
 
     std::string GetMimeType(const std::string& extension) {
         std::string ext_lower = extension;
