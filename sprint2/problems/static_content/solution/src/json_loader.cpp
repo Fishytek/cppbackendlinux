@@ -86,36 +86,29 @@ model::Map LoadMap(const json::object& map_obj) {
 } // namespace
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-    try {
-        // 1. Открываем файл
-        std::ifstream file(json_path);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open json file: " << json_path << std::endl;
-            return std::nullopt;
-        }
-
-        // 2. Читаем содержимое файла
-        std::string content((std::istreambuf_iterator<char>(file)), 
-                           std::istreambuf_iterator<char>());
-        file.close();
-
-        // 3. Парсим JSON
-        auto value = json::parse(content);
-        auto& root = value.as_object();
-        auto& maps_array = root.at("maps").as_array();
-
-        model::Game game;
-
-        // 4. Обрабатываем каждую карту
-        for (auto& map_value : maps_array) {
-            game.AddMap(LoadMap(map_value.as_object()));
-        }
-
-        return game;
-
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading game from " << json_path << ": " << e.what() << std::endl;
-        return std::nullopt;
+    // 1. Открываем файл
+    std::ifstream file(json_path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open json file: " + json_path.string());
     }
+
+    // 2. Читаем содержимое файла
+    std::string content((std::istreambuf_iterator<char>(file)), 
+                       std::istreambuf_iterator<char>());
+    file.close();
+
+    // 3. Парсим JSON
+    auto value = json::parse(content);
+    auto& root = value.as_object();
+    auto& maps_array = root.at("maps").as_array();
+
+    model::Game game;
+
+    // 4. Обрабатываем каждую карту
+    for (auto& map_value : maps_array) {
+        game.AddMap(LoadMap(map_value.as_object()));
+    }
+
+    return game;
 }
 }
