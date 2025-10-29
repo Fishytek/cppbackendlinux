@@ -8,6 +8,9 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <iostream>
+#include <sstream>
+#include <algorithm> 
 
 namespace http_handler {
 namespace beast = boost::beast;
